@@ -71,9 +71,10 @@ export class GameManager {
   }
 
   public toggleSpeed(): void {
-    this.gameSpeed = this.gameSpeed === 1 ? 2 : 1;
+    this.gameSpeed = this.gameSpeed === 1 ? 2 : this.gameSpeed === 2 ? 3 : 1;
     if (this.onSpeedChanged) this.onSpeedChanged(this.gameSpeed);
-    if (this.onMessage) this.onMessage(this.gameSpeed === 2 ? '⏩ 二倍速' : '⏩ 一倍速');
+    const label = this.gameSpeed === 1 ? '一倍速' : this.gameSpeed === 2 ? '二倍速' : '三倍速';
+    if (this.onMessage) this.onMessage('⏩ ' + label);
   }
 
   public selectTower(type: TowerType | null): void {

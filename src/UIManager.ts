@@ -160,8 +160,9 @@ export class UIManager {
   }
 
   public updateSpeedButton(speed: number): void {
-    this.speedBtn.textContent = speed === 2 ? '⏩ 2x' : '⏩ 1x';
-    this.speedBtn.classList.toggle('speed2', speed === 2);
+    this.speedBtn.textContent = '⏩ ' + speed + 'x';
+    this.speedBtn.classList.toggle('speed2', speed >= 2);
+    this.speedBtn.classList.toggle('speed3', speed >= 3);
   }
 
   public updateWaveButton(): void {
