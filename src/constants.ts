@@ -116,28 +116,29 @@ export interface EnemyConfig {
   color: number;
   emissive: number;
   scale: number;       // relative size
+  livesDamage: number; // how many lives this enemy drains on reaching the end
 }
 
 export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Grunt]: {
     type: EnemyType.Grunt, name: '小兵',
     maxHp: 80, speed: 1.5, reward: 25,
-    color: 0xe57373, emissive: 0x330000, scale: 0.7,
+    color: 0xe57373, emissive: 0x330000, scale: 0.7, livesDamage: 1,
   },
   [EnemyType.Runner]: {
     type: EnemyType.Runner, name: '快兵',
     maxHp: 50, speed: 3.0, reward: 30,
-    color: 0xffb74d, emissive: 0x331100, scale: 0.55,
+    color: 0xffb74d, emissive: 0x331100, scale: 0.55, livesDamage: 1,
   },
   [EnemyType.Tank]: {
     type: EnemyType.Tank, name: '重装',
     maxHp: 250, speed: 0.8, reward: 60,
-    color: 0x5c6bc0, emissive: 0x000022, scale: 0.9,
+    color: 0x5c6bc0, emissive: 0x000022, scale: 0.9, livesDamage: 2,
   },
   [EnemyType.Boss]: {
     type: EnemyType.Boss, name: 'Boss',
     maxHp: 800, speed: 0.5, reward: 200,
-    color: 0xffd740, emissive: 0x331100, scale: 1.2,
+    color: 0xffd740, emissive: 0x331100, scale: 1.2, livesDamage: 5,
   },
 };
 
@@ -240,7 +241,7 @@ export interface GameState {
 }
 
 export const INITIAL_GOLD = 400;
-export const INITIAL_LIVES = 20;
+export const INITIAL_LIVES = 10;
 export const TOTAL_WAVES = 15;
 export const SELL_REFUND_RATIO = 0.5;
 

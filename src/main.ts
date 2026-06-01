@@ -145,6 +145,37 @@ const endPos = gridToWorld(11, 7);
 castleGroup.position.set(endPos.x, 0, endPos.z + 2.5);
 scene.add(castleGroup);
 
+// Castle HP bar
+const castleHpBarWidth = 3.0;
+const castleHpBarHeight = 0.3;
+const castleHpGroup = new THREE.Group();
+const castleBgGeo = new THREE.BoxGeometry(castleHpBarWidth, castleHpBarHeight, 0.05);
+const castleBgMat = new THREE.MeshBasicMaterial({ color: 0x333333, depthTest: false });
+castleHpGroup.add(new THREE.Mesh(castleBgGeo, castleBgMat));
+const castleFillGeo = new THREE.BoxGeometry(castleHpBarWidth, castleHpBarHeight, 0.06);
+const castleFillMat = new THREE.MeshBasicMaterial({ color: 0x4caf50, depthTest: false });
+const castleHpFill = new THREE.Mesh(castleFillGeo, castleFillMat);
+castleHpFill.position.z = 0.005;
+castleHpGroup.add(castleHpFill);
+const castleBorderGeo = new THREE.EdgesGeometry(castleBgGeo);
+const castleBorderMat = new THREE.LineBasicMaterial({ color: 0x000000, depthTest: false });
+const castleBorder = new THREE.LineSegments(castleBorderGeo, castleBorderMat);
+castleBorder.position.z = 0.01;
+castleHpGroup.add(castleBorder);
+// "🏠" label using a small plane with text — just use position
+castleHpGroup.position.set(endPos.x, 3.5, endPos.z + 2.5);
+scene.add(castleHpGroup);
+
+function updateCastleHpBar(lives: number, maxLives: number): void {
+  const ratio = Math.max(0, lives / maxLives);
+  castleHpFill.scale.x = ratio;
+  castleHpFill.position.x = -castleHpBarWidth * (1 - ratio) / 2;
+  if (ratio > 0.5) castleFillMat.color.set(0x4caf50);
+  else if (ratio > 0.25) castleFillMat.color.set(0xff9800);
+  else castleFillMat.color.set(0xf44336);
+}
+updateCastleHpBar(10, 10); // initial
+
 // Trees (decorative, placed around the grid)
 for (let i = 0; i < 35; i++) {
   const treeGroup = new THREE.Group();
@@ -344,6 +375,10 @@ function animate(): void {
 
   // GameManager has its own speed logic
   gameManager.update(rawDt);
+
+  // Update castle HP bar
+  updateCastleHpBar(gameManager.state.lives, 10);
+  castleHpGroup.lookAt(camera.position);
 
   // Water animation
   water.position.y = -0.15 + Math.sin(performance.now() * 0.001) * 0.06;

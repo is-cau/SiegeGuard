@@ -200,9 +200,11 @@ export class GameManager {
     // Check for enemies that reached the end
     const enemiesReachedEnd = this.enemyManager.enemies.filter(e => e.reachedEnd && e.alive);
     for (const enemy of enemiesReachedEnd) {
-      this.state.lives--;
+      const dmg = enemy.config.livesDamage;
+      this.state.lives -= dmg;
       enemy.alive = false;
       if (this.onLivesChanged) this.onLivesChanged(this.state.lives);
+      this.showMessage(`💔 -${dmg} 生命！${enemy.config.name} 突破防线`);
     }
   }
 
