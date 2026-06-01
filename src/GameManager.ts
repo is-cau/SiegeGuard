@@ -23,6 +23,7 @@ export class GameManager {
   public effectManager: EffectManager;
 
   public selectedTowerType: TowerType | null = null;
+  public gameSpeed: number = 1; // 1 = normal, 2 = double speed
 
   // Wave state
   private waveQueue: WaveEntry[] = [];
@@ -36,6 +37,7 @@ export class GameManager {
   public onMessage: ((msg: string) => void) | null = null;
   public onGoldChanged: ((gold: number) => void) | null = null;
   public onLivesChanged: ((lives: number) => void) | null = null;
+  public onSpeedChanged: ((speed: number) => void) | null = null;
 
   constructor(
     mapManager: MapManager,
@@ -66,6 +68,12 @@ export class GameManager {
       this.effectManager.spawnExplosion(enemy.worldPos.clone(), new THREE.Color(enemy.config.color), 15);
       if (this.onGoldChanged) this.onGoldChanged(this.state.gold);
     };
+  }
+
+  public toggleSpeed(): void {
+    this.gameSpeed = this.gameSpeed === 1 ? 2 : 1;
+    if (this.onSpeedChanged) this.onSpeedChanged(this.gameSpeed);
+    if (this.onMessage) this.onMessage(this.gameSpeed === 2 ? '⏩ 二倍速' : '⏩ 一倍速');
   }
 
   public selectTower(type: TowerType | null): void {
@@ -157,9 +165,11 @@ export class GameManager {
   }
 
   public update(dt: number): void {
+    const speedDt = dt * this.gameSpeed;
+
     // Update combat
     if (this.state.phase === GamePhase.Combat) {
-      this.updateWaveSpawning(dt);
+      this.updateWaveSpawning(speedDt);
 
       // Check wave completion
       if (this.waveAllSpawned &&
@@ -217,7 +227,7 @@ export class GameManager {
         lastEnemy.hp = Math.floor(lastEnemy.hp * hpMult);
         lastEnemy.maxHp = lastEnemy.hp;
         lastEnemy.speed = lastEnemy.config.speed * (1 + (this.state.wave - 1) * 0.03);
-        this.enemyManager.updateHpBar(lastEnemy);
+        this.enemyManager.drawHpBar(lastEnemy);
       }
 
       // Move to next entry or reset timer

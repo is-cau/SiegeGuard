@@ -36,7 +36,7 @@ export class ProjectileManager {
       position: tower.worldPos.clone().add(new THREE.Vector3(0, 0.8, 0)),
       mesh,
       damage: config.damage,
-      speed: 8,
+      speed: config.type === TowerType.Cannon ? 5 : 10,
       aoeRadius: config.aoeRadius,
       slowFactor: config.slowFactor,
       slowDuration: config.slowDuration,
@@ -44,40 +44,79 @@ export class ProjectileManager {
       alive: true,
     };
 
+    // Face initial direction toward target
     mesh.position.copy(instance.position);
     this.scene.add(mesh);
     this.projectiles.push(instance);
   }
 
-  private createProjectileMesh(config: TowerInstance['config']): THREE.Mesh {
+  private createProjectileMesh(config: TowerInstance['config']): THREE.Mesh | THREE.Group {
     switch (config.type) {
       case TowerType.Arrow: {
-        const geo = new THREE.ConeGeometry(0.12, 0.5, 4);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = Math.PI / 2; // point forward
-        return mesh;
+        // Arrow: long shaft + pointed tip
+        const group = new THREE.Group();
+        // Shaft
+        const shaftGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6);
+        const shaftMat = new THREE.MeshBasicMaterial({ color: 0x8b4513 });
+        const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+        group.add(shaft);
+        // Tip
+        const tipGeo = new THREE.ConeGeometry(0.08, 0.3, 6);
+        const tipMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+        const tip = new THREE.Mesh(tipGeo, tipMat);
+        tip.position.y = 0.55;
+        group.add(tip);
+        // Fletching
+        const fletchGeo = new THREE.BoxGeometry(0.12, 0.04, 0.02);
+        const fletchMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+        const fletch1 = new THREE.Mesh(fletchGeo, fletchMat);
+        fletch1.position.set(0, -0.4, 0.04);
+        group.add(fletch1);
+        const fletch2 = new THREE.Mesh(fletchGeo, fletchMat);
+        fletch2.position.set(0, -0.4, -0.04);
+        group.add(fletch2);
+        return group;
       }
       case TowerType.Cannon: {
-        const geo = new THREE.SphereGeometry(0.2, 8, 8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
-        return new THREE.Mesh(geo, mat);
+        // Bomb: large dark sphere with fuse glow
+        const geo = new THREE.SphereGeometry(0.25, 12, 10);
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x333333,
+          roughness: 0.4,
+          metalness: 0.7,
+          emissive: 0x441100,
+        });
+        const bomb = new THREE.Mesh(geo, mat);
+        // Fuse spark
+        const sparkGeo = new THREE.SphereGeometry(0.06, 4, 4);
+        const sparkMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+        const spark = new THREE.Mesh(sparkGeo, sparkMat);
+        spark.position.y = 0.28;
+        bomb.add(spark);
+        return bomb;
       }
       case TowerType.Ice: {
-        const geo = new THREE.OctahedronGeometry(0.15, 0);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x80deea });
+        // Ice: bright blue crystal shard
+        const geo = new THREE.OctahedronGeometry(0.18, 0);
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x80deea,
+          roughness: 0.1,
+          metalness: 0.1,
+          emissive: 0x115566,
+          transparent: true,
+          opacity: 0.9,
+        });
         return new THREE.Mesh(geo, mat);
       }
       case TowerType.Lightning: {
-        const geo = new THREE.SphereGeometry(0.15, 6, 6);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+        // Lightning: small bright orb
+        const geo = new THREE.SphereGeometry(0.12, 6, 6);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         return new THREE.Mesh(geo, mat);
       }
-      default: {
+      default:
         const geo = new THREE.SphereGeometry(0.15, 4, 4);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        return new THREE.Mesh(geo, mat);
-      }
+        return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
     }
   }
 
@@ -90,45 +129,33 @@ export class ProjectileManager {
         continue;
       }
 
-      // Check if target still valid
       if (!proj.target.alive) {
         proj.alive = false;
         continue;
       }
 
-      // Move toward target
-      const toTarget = proj.target.worldPos.clone().add(new THREE.Vector3(0, 0.5, 0)).sub(proj.position);
+      const targetPos = proj.target.worldPos.clone().add(new THREE.Vector3(0, 0.5, 0));
+      const toTarget = targetPos.clone().sub(proj.position);
       const distToTarget = toTarget.length();
 
-      if (distToTarget < 0.4) {
-        // Hit!
+      if (distToTarget < 0.5) {
         this.onProjectileHit(proj);
         proj.alive = false;
         continue;
       }
 
-      const moveStep = proj.speed * dt;
       toTarget.normalize();
-      proj.position.add(toTarget.clone().multiplyScalar(Math.min(moveStep, distToTarget)));
+      proj.position.add(toTarget.clone().multiplyScalar(proj.speed * dt));
       proj.mesh.position.copy(proj.position);
 
-      // Rotate projectile to face direction
-      if (toTarget.lengthSq() > 0.001) {
-        proj.mesh.quaternion.setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          toTarget.clone().normalize(),
-        );
-      }
+      // Orient toward target
+      const up = new THREE.Vector3(0, 1, 0);
+      const quat = new THREE.Quaternion().setFromUnitVectors(up, toTarget);
+      proj.mesh.quaternion.slerp(quat, 0.3);
 
-      // Adjust target position (in case target moved)
-      if (proj.target.alive) {
-        // Simple homing - adjust direction slightly
-        const newDir = proj.target.worldPos.clone().add(new THREE.Vector3(0, 0.5, 0)).sub(proj.position).normalize();
-        const currentDir = toTarget;
-        // Only adjust if target is still somewhat ahead
-        if (currentDir.dot(newDir) > 0) {
-          // Fine
-        }
+      // Spin cannonballs
+      if (proj.sourceTower.config.type === TowerType.Cannon) {
+        proj.mesh.rotateY(dt * 5);
       }
     }
   }
@@ -136,7 +163,7 @@ export class ProjectileManager {
   private onProjectileHit(proj: ProjectileInstance): void {
     const pos = proj.position.clone();
 
-    // AOE damage
+    // AOE (Cannon)
     if (proj.aoeRadius > 0) {
       const enemies = this.enemyManager.getEnemiesInRange(pos, proj.aoeRadius);
       for (const enemy of enemies) {
@@ -145,18 +172,21 @@ export class ProjectileManager {
           this.onEnemyKilled(enemy);
         }
       }
-      // AOE explosion effect
-      this.effectManager.spawnExplosion(pos, new THREE.Color(0xff6600), 20);
+      // Big explosion
+      this.effectManager.spawnExplosion(pos, new THREE.Color(0xff6600), 25);
+      this.effectManager.spawnExplosion(
+        pos.clone().add(new THREE.Vector3(0, 0.3, 0)),
+        new THREE.Color(0xffcc00),
+        15,
+      );
     } else if (proj.chainCount > 0) {
       // Chain lightning
       const hitEnemies: EnemyInstance[] = [];
-      let currentEnemy = proj.target;
+      let currentEnemy: EnemyInstance = proj.target;
 
       for (let c = 0; c <= proj.chainCount && currentEnemy && currentEnemy.alive; c++) {
-        const killed = this.enemyManager.takeDamage(
-          currentEnemy,
-          c === 0 ? proj.damage : proj.damage * 0.7,
-        );
+        const dmg = c === 0 ? proj.damage : Math.floor(proj.damage * 0.7);
+        const killed = this.enemyManager.takeDamage(currentEnemy, dmg);
         hitEnemies.push(currentEnemy);
         if (killed && this.onEnemyKilled) {
           this.onEnemyKilled(currentEnemy);
@@ -167,43 +197,67 @@ export class ProjectileManager {
           currentEnemy.worldPos,
           proj.sourceTower.config.range * 0.8,
         ).filter(e => !hitEnemies.includes(e) && e.alive);
-        currentEnemy = nearby.length > 0 ? nearby[0] : null!;
+
+        if (nearby.length > 0) {
+          currentEnemy = nearby[0];
+        } else {
+          break;
+        }
       }
 
-      // Lightning visual
+      // Lightning visual with jagged arcs
       this.effectManager.spawnLightningChain(
         hitEnemies.map(e => e.worldPos.clone()),
       );
-      this.effectManager.spawnExplosion(pos, new THREE.Color(0xffd740), 8);
+      this.effectManager.spawnExplosion(
+        hitEnemies[hitEnemies.length - 1].worldPos.clone(),
+        new THREE.Color(0xffff00),
+        8,
+      );
     } else {
-      // Single target
+      // Single target (Arrow or Ice)
       const killed = this.enemyManager.takeDamage(
         proj.target,
         proj.damage,
         proj.slowFactor,
         proj.slowDuration,
       );
-      if (killed && this.onEnemyKilled) {
-        this.onEnemyKilled(proj.target);
-      }
 
-      // Effect based on tower type
       if (proj.slowFactor < 1) {
+        // Ice hit effect
         this.effectManager.spawnIceEffect(proj.target.worldPos.clone());
       } else {
-        this.effectManager.spawnExplosion(pos, new THREE.Color(0xffcc80), 5);
+        // Arrow hit — small spark
+        this.effectManager.spawnExplosion(pos, new THREE.Color(0xffcc80), 4);
+      }
+
+      if (killed && this.onEnemyKilled) {
+        this.onEnemyKilled(proj.target);
       }
     }
   }
 
   private cleanupProjectile(proj: ProjectileInstance): void {
     this.scene.remove(proj.mesh);
-    if (Array.isArray(proj.mesh.material)) {
-      proj.mesh.material.forEach(m => m.dispose());
+    if (proj.mesh instanceof THREE.Group) {
+      proj.mesh.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
     } else {
-      proj.mesh.material.dispose();
+      if (Array.isArray(proj.mesh.material)) {
+        proj.mesh.material.forEach(m => m.dispose());
+      } else {
+        proj.mesh.material.dispose();
+      }
+      proj.mesh.geometry.dispose();
     }
-    proj.mesh.geometry.dispose();
   }
 
   public dispose(): void {

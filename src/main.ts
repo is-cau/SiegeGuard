@@ -26,136 +26,152 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a2e);
-scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
+scene.fog = new THREE.Fog(0x1a1a2e, 25, 60);
 
+// Camera: start high and back to see the full map including castle at the far end
 const camera = new THREE.PerspectiveCamera(
   50,
   window.innerWidth / window.innerHeight,
   0.5,
   80,
 );
-camera.position.set(12, 16, 16);
-camera.lookAt(0, 0, 0);
+// Position to see: start (left) → path → castle (right/far)
+camera.position.set(0, 22, 18);
+camera.lookAt(0, 0, -1);
 
 // ─── OrbitControls ────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, -1);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 8;
-controls.maxDistance = 30;
-controls.maxPolarAngle = Math.PI / 2.2; // prevent going under ground
-controls.minPolarAngle = 0.2;
-// Use right mouse for rotate, left click for game interaction
+controls.minDistance = 10;
+controls.maxDistance = 35;
+controls.maxPolarAngle = Math.PI / 2.2;
+controls.minPolarAngle = 0.3;
+// Default: left = rotate, right = pan, scroll = zoom
+// We intercept left click for tower placement only when a tower is selected
 controls.mouseButtons = {
-  LEFT: -1 as any,  // disabled — we handle left click
+  LEFT: THREE.MOUSE.ROTATE,
   MIDDLE: THREE.MOUSE.DOLLY,
-  RIGHT: THREE.MOUSE.ROTATE,
-};
-controls.touches = {
-  ONE: THREE.TOUCH.ROTATE,
-  TWO: THREE.TOUCH.DOLLY_PAN,
+  RIGHT: THREE.MOUSE.PAN,
 };
 controls.update();
 
 // ─── Lighting ─────────────────────────────────────
-const ambientLight = new THREE.AmbientLight(0x404060, 1.5);
+const ambientLight = new THREE.AmbientLight(0x404060, 1.8);
 scene.add(ambientLight);
 
-const sunLight = new THREE.DirectionalLight(0xfff5e6, 3.5);
+const sunLight = new THREE.DirectionalLight(0xfff5e6, 4.0);
 sunLight.position.set(15, 25, 10);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.camera.near = 0.5;
 sunLight.shadow.camera.far = 60;
-sunLight.shadow.camera.left = -15;
-sunLight.shadow.camera.right = 15;
-sunLight.shadow.camera.top = 15;
-sunLight.shadow.camera.bottom = -15;
+sunLight.shadow.camera.left = -18;
+sunLight.shadow.camera.right = 18;
+sunLight.shadow.camera.top = 18;
+sunLight.shadow.camera.bottom = -18;
 sunLight.shadow.bias = -0.0001;
 scene.add(sunLight);
 
-const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362907, 0.8);
+const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362907, 0.9);
 scene.add(hemisphereLight);
 
 // ─── Decorative elements ──────────────────────────
 // Water around the map
-const waterGeo = new THREE.PlaneGeometry(40, 30);
+const waterGeo = new THREE.PlaneGeometry(50, 36);
 const waterMat = new THREE.MeshStandardMaterial({
   color: 0x1a5276,
-  roughness: 0.2,
-  metalness: 0.8,
+  roughness: 0.15,
+  metalness: 0.85,
   transparent: true,
-  opacity: 0.6,
+  opacity: 0.5,
 });
 const water = new THREE.Mesh(waterGeo, waterMat);
 water.rotation.x = -Math.PI / 2;
-water.position.y = -0.1;
+water.position.y = -0.15;
 water.receiveShadow = true;
 scene.add(water);
 
-// Castle at the end
+// Castle at the end (defend point)
 const castleGroup = new THREE.Group();
-const castleBaseGeo = new THREE.BoxGeometry(2, 1.5, 2);
-const castleBaseMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.4, metalness: 0.3 });
+const castleBaseGeo = new THREE.BoxGeometry(2.5, 2, 2.5);
+const castleBaseMat = new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.3, metalness: 0.4 });
 const castleBase = new THREE.Mesh(castleBaseGeo, castleBaseMat);
-castleBase.position.y = 0.75;
+castleBase.position.y = 1.0;
 castleBase.castShadow = true;
+castleBase.receiveShadow = true;
 castleGroup.add(castleBase);
 
+// 4 corner towers
 for (let i = 0; i < 4; i++) {
-  const towerGeo = new THREE.CylinderGeometry(0.3, 0.35, 1.5, 8);
-  const towerMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.3, metalness: 0.4 });
-  const tower = new THREE.Mesh(towerGeo, towerMat);
+  const twrGeo = new THREE.CylinderGeometry(0.35, 0.4, 2.0, 8);
+  const twrMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.3, metalness: 0.5 });
+  const twr = new THREE.Mesh(twrGeo, twrMat);
   const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
-  tower.position.set(Math.cos(angle) * 1.1, 0.75, Math.sin(angle) * 1.1);
-  tower.castShadow = true;
-  castleGroup.add(tower);
+  twr.position.set(Math.cos(angle) * 1.2, 1.0, Math.sin(angle) * 1.2);
+  twr.castShadow = true;
+  castleGroup.add(twr);
 
-  const coneGeo = new THREE.ConeGeometry(0.35, 0.6, 8);
-  const coneMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.3, metalness: 0.3 });
+  const coneGeo = new THREE.ConeGeometry(0.4, 0.7, 8);
+  const coneMat = new THREE.MeshStandardMaterial({
+    color: 0xcc3333,
+    roughness: 0.3,
+    metalness: 0.3,
+    emissive: 0x330000,
+  });
   const cone = new THREE.Mesh(coneGeo, coneMat);
-  cone.position.copy(tower.position).add(new THREE.Vector3(0, 1.0, 0));
+  cone.position.copy(twr.position).add(new THREE.Vector3(0, 1.3, 0));
   cone.castShadow = true;
   castleGroup.add(cone);
 }
 
+// Central keep
+const keepGeo = new THREE.CylinderGeometry(0.5, 0.6, 2.5, 8);
+const keepMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.3, metalness: 0.5 });
+const keep = new THREE.Mesh(keepGeo, keepMat);
+keep.position.y = 2.0;
+keep.castShadow = true;
+castleGroup.add(keep);
+
+const flagGeo = new THREE.PlaneGeometry(0.3, 0.6);
+const flagMat = new THREE.MeshBasicMaterial({ color: 0xff4444, side: THREE.DoubleSide });
+const flag = new THREE.Mesh(flagGeo, flagMat);
+flag.position.set(0, 3.5, 0);
+castleGroup.add(flag);
+
 const endPos = gridToWorld(11, 7);
-castleGroup.position.set(endPos.x, 0, endPos.z + 2);
+castleGroup.position.set(endPos.x, 0, endPos.z + 2.5);
 scene.add(castleGroup);
 
-// Trees (decorative)
-for (let i = 0; i < 30; i++) {
+// Trees (decorative, placed around the grid)
+for (let i = 0; i < 35; i++) {
   const treeGroup = new THREE.Group();
-  const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
+  const trunkGeo = new THREE.CylinderGeometry(0.15, 0.22, 1.5, 6);
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.8 });
   const trunk = new THREE.Mesh(trunkGeo, trunkMat);
   trunk.position.y = 0.75;
   trunk.castShadow = true;
   treeGroup.add(trunk);
 
-  const leavesGeo = new THREE.ConeGeometry(0.6, 1.5, 8);
-  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 + Math.floor(Math.random() * 0x224411), roughness: 0.7 });
+  const colorVar = Math.floor(Math.random() * 0x334422);
+  const leavesGeo = new THREE.ConeGeometry(0.7, 1.8, 8);
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 + colorVar, roughness: 0.7 });
   const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-  leaves.position.y = 1.8;
+  leaves.position.y = 1.9;
   leaves.castShadow = true;
   treeGroup.add(leaves);
 
-  // Position trees away from the grid
-  const margin = 3;
-  const totalW = 30;
-  const totalH = 24;
+  // Position outside the grid
+  const margin = 4;
   let tx: number, tz: number;
   do {
-    tx = (Math.random() - 0.5) * totalW;
-    tz = (Math.random() - 0.5) * totalH;
-  } while (
-    tx > -12 && tx < 12 &&
-    tz > -9 && tz < 7
-  );
+    tx = (Math.random() - 0.5) * 32;
+    tz = (Math.random() - 0.5) * 26;
+  } while (tx > -12 && tx < 12 && tz > -8 && tz < 8);
   treeGroup.position.set(tx, 0, tz);
-  treeGroup.scale.setScalar(0.7 + Math.random() * 0.6);
+  treeGroup.scale.setScalar(0.6 + Math.random() * 0.8);
   scene.add(treeGroup);
 }
 
@@ -186,29 +202,32 @@ function getGridFromEvent(e: MouseEvent): [number, number] | null {
   return worldToGrid(intersection);
 }
 
-// Left click: place tower
+// Left click: place tower (only when a tower is selected), otherwise orbit
 renderer.domElement.addEventListener('click', (e: MouseEvent) => {
-  if (e.button !== 0) return; // only left click
+  if (e.button !== 0) return;
+
+  // Only place if we have a tower selected AND in building phase
+  if (!gameManager.selectedTowerType || gameManager.state.phase !== GamePhase.Building) {
+    return; // let OrbitControls handle it
+  }
 
   const grid = getGridFromEvent(e);
   if (!grid) return;
 
   const [col, row] = grid;
-
-  // If a tower is selected, try to place it
-  if (gameManager.selectedTowerType && gameManager.state.phase === GamePhase.Building) {
-    const success = gameManager.placeTower(gameManager.selectedTowerType, col, row);
-    if (success) {
-      mapManager.hideRangePreview();
-      mapManager.resetHighlights();
+  const success = gameManager.placeTower(gameManager.selectedTowerType, col, row);
+  if (success) {
+    mapManager.hideRangePreview();
+    mapManager.resetHighlights();
+    uiManager.updateTowerButtons();
+    // Keep selection for chain placement
+    if (!gameManager.canAfford(gameManager.selectedTowerType)) {
+      gameManager.selectTower(null);
       uiManager.updateTowerButtons();
-      // Keep selection for rapid placement
-      if (!gameManager.canAfford(gameManager.selectedTowerType)) {
-        gameManager.selectTower(null);
-        uiManager.updateTowerButtons();
-      }
     }
   }
+  // Block OrbitControls from rotating when we placed a tower
+  e.stopPropagation();
 });
 
 // Right click: sell tower
@@ -228,7 +247,7 @@ renderer.domElement.addEventListener('contextmenu', (e: MouseEvent) => {
   }
 });
 
-// Mouse move: show preview
+// Mouse move: show placement preview when tower selected
 renderer.domElement.addEventListener('mousemove', (e: MouseEvent) => {
   if (!gameManager.selectedTowerType || gameManager.state.phase !== GamePhase.Building) {
     return;
@@ -243,16 +262,53 @@ renderer.domElement.addEventListener('mousemove', (e: MouseEvent) => {
     const worldPos = gridToWorld(col, row);
     const config = TOWER_CONFIGS[gameManager.selectedTowerType];
 
-    if (valid) {
-      mapManager.highlightCell(col, row, 0x4caf50);
-    } else {
-      mapManager.highlightCell(col, row, 0xf44336);
-    }
+    mapManager.highlightCell(col, row, valid ? 0x4caf50 : 0xf44336);
     mapManager.showRangePreview(worldPos, config.range, valid);
   } else {
     mapManager.hideRangePreview();
   }
 });
+
+// ─── Keyboard ──────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Speed toggle with 'F' key
+  if (e.key === 'f' || e.key === 'F') {
+    gameManager.toggleSpeed();
+    return;
+  }
+
+  if (gameManager.state.phase !== GamePhase.Building) return;
+
+  switch (e.key) {
+    case '1': selectTowerType(TowerType.Arrow); break;
+    case '2': selectTowerType(TowerType.Cannon); break;
+    case '3': selectTowerType(TowerType.Ice); break;
+    case '4': selectTowerType(TowerType.Lightning); break;
+    case 'Escape':
+      gameManager.selectTower(null);
+      uiManager.updateTowerButtons();
+      mapManager.hideRangePreview();
+      mapManager.resetHighlights();
+      break;
+    case ' ':
+      e.preventDefault();
+      if (gameManager.state.phase === GamePhase.Building) {
+        gameManager.startWave();
+        uiManager.updateTowerButtons();
+        uiManager.updateWaveButton();
+      }
+      break;
+  }
+});
+
+function selectTowerType(type: TowerType): void {
+  if (!gameManager.canAfford(type)) {
+    uiManager.showMessage('💰 金币不足！');
+    return;
+  }
+  gameManager.selectTower(gameManager.selectedTowerType === type ? null : type);
+  uiManager.updateTowerButtons();
+}
 
 // ─── Resize Handler ───────────────────────────────
 window.addEventListener('resize', () => {
@@ -263,37 +319,38 @@ window.addEventListener('resize', () => {
 
 // ─── Game Loop ────────────────────────────────────
 const clock = new THREE.Clock();
-let lastTime = performance.now();
 
 function animate(): void {
   requestAnimationFrame(animate);
 
-  const now = performance.now();
-  const dt = Math.min(clock.getDelta(), 0.1); // cap delta to prevent jumps
+  const rawDt = Math.min(clock.getDelta(), 0.1);
+  const speed = gameManager.gameSpeed;
+  const dt = rawDt * speed;
 
+  // When a tower is selected, don't let OrbitControls rotate (we handle clicks)
+  // When no tower selected, OrbitControls works normally
+  controls.enabled = !gameManager.selectedTowerType || gameManager.state.phase !== GamePhase.Building;
   controls.update();
 
-  // Update all managers
-  mapManager.update(now);
+  // Update all managers at game speed
+  mapManager.update(performance.now());
   towerManager.update(dt);
   enemyManager.update(dt);
   projectileManager.update(dt);
   effectManager.update(dt);
-  gameManager.update(dt);
+
+  // GameManager has its own speed logic
+  gameManager.update(rawDt);
 
   // Water animation
-  water.position.y = -0.1 + Math.sin(now * 0.001) * 0.05;
-
-  // Update shadow camera
-  sunLight.position.x = camera.position.x + 5;
-  sunLight.position.z = camera.position.z + 5;
+  water.position.y = -0.15 + Math.sin(performance.now() * 0.001) * 0.06;
 
   renderer.render(scene, camera);
-  lastTime = now;
 }
 
 // ─── Start ────────────────────────────────────────
 console.log('🏰 SiegeGuard — 3D Tower Defense 已就绪');
-console.log('  选择塔 → 点击地图放置 | 右键出售 | 空格开始波次');
+console.log('  选择塔 → 点击地图放置 | 右键出售 | 空格开始波次 | F 切换倍速');
+console.log('  左键拖拽旋转视角 | 右键拖拽平移 | 滚轮缩放');
 
 animate();

@@ -283,7 +283,7 @@ export interface ProjectileInstance {
   sourceTower: TowerInstance;
   target: EnemyInstance;
   position: THREE.Vector3;
-  mesh: THREE.Mesh;
+  mesh: THREE.Mesh | THREE.Group;
   damage: number;
   speed: number;
   aoeRadius: number;

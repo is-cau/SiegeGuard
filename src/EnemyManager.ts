@@ -14,22 +14,16 @@ export class EnemyManager {
   private pathPositions: THREE.Vector3[];
   private idCounter = 0;
 
-  // HP bar canvas textures
-  private hpBarCanvas: HTMLCanvasElement;
-  private hpBarBgCanvas: HTMLCanvasElement;
+  // Per-enemy HP canvas + texture storage
+  private hpData: Map<number, {
+    canvas: HTMLCanvasElement;
+    texture: THREE.CanvasTexture;
+    bgTexture: THREE.CanvasTexture;
+  }> = new Map();
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.pathPositions = getPathPositions();
-
-    // Create shared HP bar textures
-    this.hpBarCanvas = document.createElement('canvas');
-    this.hpBarCanvas.width = 64;
-    this.hpBarCanvas.height = 8;
-
-    this.hpBarBgCanvas = document.createElement('canvas');
-    this.hpBarBgCanvas.width = 64;
-    this.hpBarBgCanvas.height = 8;
   }
 
   public spawnEnemy(type: EnemyType): EnemyInstance {
@@ -39,11 +33,45 @@ export class EnemyManager {
     const mesh = this.createEnemyMesh(config);
     mesh.position.copy(startPos);
 
-    const hpBar = this.createHpBar(0xff0000);
-    const hpBarBg = this.createHpBar(0x333333);
+    // Per-enemy HP bar canvases
+    const hpCanvas = document.createElement('canvas');
+    hpCanvas.width = 64;
+    hpCanvas.height = 8;
+    const hpTexture = new THREE.CanvasTexture(hpCanvas);
+    hpTexture.minFilter = THREE.NearestFilter;
+    hpTexture.magFilter = THREE.NearestFilter;
+
+    const hpMat = new THREE.SpriteMaterial({
+      map: hpTexture,
+      transparent: true,
+      depthTest: false,
+    });
+    const hpBar = new THREE.Sprite(hpMat);
+    hpBar.scale.set(1.2, 0.12, 1);
+
+    // Background bar (always full width, dark)
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 64;
+    bgCanvas.height = 8;
+    const bgCtx = bgCanvas.getContext('2d')!;
+    bgCtx.fillStyle = '#333333';
+    bgCtx.fillRect(0, 0, 64, 8);
+    const bgTexture = new THREE.CanvasTexture(bgCanvas);
+    bgTexture.minFilter = THREE.NearestFilter;
+    bgTexture.magFilter = THREE.NearestFilter;
+    const bgMat = new THREE.SpriteMaterial({
+      map: bgTexture,
+      transparent: true,
+      depthTest: false,
+    });
+    const hpBarBg = new THREE.Sprite(bgMat);
+    hpBarBg.scale.set(1.2, 0.12, 1);
+
+    const id = this.idCounter++;
+    this.hpData.set(id, { canvas: hpCanvas, texture: hpTexture, bgTexture });
 
     const instance: EnemyInstance = {
-      id: this.idCounter++,
+      id,
       config,
       hp: config.maxHp,
       maxHp: config.maxHp,
@@ -59,6 +87,9 @@ export class EnemyManager {
       slowTimer: 0,
       slowFactor: 1,
     };
+
+    // Draw initial full HP
+    this.drawHpBar(instance);
 
     this.scene.add(mesh);
     this.scene.add(hpBar);
@@ -78,6 +109,7 @@ export class EnemyManager {
       metalness: 0.3,
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.name = 'body'; // for finding later
     body.scale.set(config.scale, config.scale, config.scale);
     body.position.y = 0.4 * config.scale;
     body.castShadow = true;
@@ -105,70 +137,74 @@ export class EnemyManager {
       const crown = new THREE.Mesh(crownGeo, crownMat);
       crown.position.y = 1.0;
       group.add(crown);
+
+      // Glow ring
+      const ringGeo = new THREE.TorusGeometry(0.5, 0.06, 8, 16);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd740, transparent: true, opacity: 0.6 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.5;
+      group.add(ring);
+    }
+
+    if (config.type === EnemyType.Runner) {
+      // Give runner a leaner look
+      body.scale.set(config.scale * 0.6, config.scale * 1.2, config.scale);
     }
 
     return group;
   }
 
-  private createHpBar(color: number): THREE.Sprite {
-    const canvas = color === 0xff0000 ? this.hpBarCanvas : this.hpBarBgCanvas;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.NearestFilter;
-    texture.magFilter = THREE.NearestFilter;
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: false,
-    });
-    const sprite = new THREE.Sprite(material);
-    sprite.scale.set(1.2, 0.12, 1);
-    return sprite;
+  private getBodyMaterial(enemy: EnemyInstance): THREE.MeshStandardMaterial | null {
+    for (const child of enemy.mesh.children) {
+      if (child instanceof THREE.Mesh && child.name === 'body') {
+        return child.material as THREE.MeshStandardMaterial;
+      }
+    }
+    return null;
   }
 
-  public updateHpBar(enemy: EnemyInstance): void {
-    const ratio = enemy.hp / enemy.maxHp;
-    const canvas = this.hpBarCanvas;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  public drawHpBar(enemy: EnemyInstance): void {
+    const data = this.hpData.get(enemy.id);
+    if (!data) return;
+
+    const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+    const ctx = data.canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 64, 8);
 
     // Background
     ctx.fillStyle = '#333333';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, 64, 8);
 
-    // Health
+    // Health fill
     const color = ratio > 0.5 ? '#4caf50' : ratio > 0.25 ? '#ff9800' : '#f44336';
     ctx.fillStyle = color;
-    ctx.fillRect(0, 0, canvas.width * ratio, canvas.height);
+    ctx.fillRect(0, 0, Math.round(64 * ratio), 8);
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.NearestFilter;
-    texture.magFilter = THREE.NearestFilter;
-    enemy.hpBar.material.map?.dispose();
-    enemy.hpBar.material.map = texture;
-    (enemy.hpBar.material as THREE.SpriteMaterial).needsUpdate = true;
+    // Border
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, 64, 8);
+
+    data.texture.needsUpdate = true;
   }
 
   public takeDamage(enemy: EnemyInstance, damage: number, slowFactor: number = 1, slowDuration: number = 0): boolean {
     if (!enemy.alive) return false;
     enemy.hp -= damage;
 
-    // Apply slow
+    // Apply slow — turn body deep blue
     if (slowFactor < 1 && slowDuration > 0) {
       enemy.slowFactor = slowFactor;
       enemy.slowTimer = Math.max(enemy.slowTimer, slowDuration);
-      // Tint blue-white
-      if (enemy.mesh.children[0] instanceof THREE.Mesh) {
-        const mat = enemy.mesh.children[0].material as THREE.MeshStandardMaterial;
-        mat.emissive = new THREE.Color(0x113344);
+      const mat = this.getBodyMaterial(enemy);
+      if (mat) {
+        mat.color.set(0x4488cc);       // Blue body
+        mat.emissive.set(0x113355);    // Blue glow
       }
     }
 
-    this.updateHpBar(enemy);
+    this.drawHpBar(enemy);
 
     if (enemy.hp <= 0) {
       enemy.hp = 0;
@@ -189,9 +225,10 @@ export class EnemyManager {
         if (enemy.slowTimer <= 0) {
           enemy.slowFactor = 1;
           enemy.slowTimer = 0;
-          // Remove blue tint
-          if (enemy.mesh.children[0] instanceof THREE.Mesh) {
-            const mat = enemy.mesh.children[0].material as THREE.MeshStandardMaterial;
+          // Restore original color
+          const mat = this.getBodyMaterial(enemy);
+          if (mat) {
+            mat.color.set(enemy.config.color);
             mat.emissive.set(enemy.config.emissive);
           }
         }
@@ -231,6 +268,9 @@ export class EnemyManager {
       enemy.mesh.position.copy(enemy.worldPos);
       enemy.mesh.position.y += 0.2;
 
+      // Bob animation
+      enemy.mesh.position.y += Math.sin(performance.now() * 0.006 + enemy.id) * 0.1;
+
       // Face movement direction
       const dir = to.clone().sub(from).normalize();
       if (dir.lengthSq() > 0.001) {
@@ -239,35 +279,45 @@ export class EnemyManager {
       }
 
       // Position HP bar above enemy
-      enemy.hpBar.position.copy(enemy.worldPos).add(new THREE.Vector3(0, 1.5, 0));
-      enemy.hpBarBg.position.copy(enemy.hpBar.position);
+      const barY = enemy.mesh.position.y + 1.6;
+      enemy.hpBar.position.set(enemy.worldPos.x, barY, enemy.worldPos.z);
+      enemy.hpBarBg.position.set(enemy.worldPos.x, barY, enemy.worldPos.z);
     }
 
     // Remove dead/reached-end enemies
     this.enemies = this.enemies.filter(e => {
       if (!e.alive || e.reachedEnd) {
-        this.scene.remove(e.mesh);
-        this.scene.remove(e.hpBar);
-        this.scene.remove(e.hpBarBg);
-        // Dispose
-        e.mesh.traverse(child => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose();
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => m.dispose());
-            } else {
-              child.material.dispose();
-            }
-          }
-        });
-        e.hpBar.material.map?.dispose();
-        e.hpBar.material.dispose();
-        e.hpBarBg.material.map?.dispose();
-        e.hpBarBg.material.dispose();
+        this.cleanupEnemy(e);
         return false;
       }
       return true;
     });
+  }
+
+  private cleanupEnemy(enemy: EnemyInstance): void {
+    this.scene.remove(enemy.mesh);
+    this.scene.remove(enemy.hpBar);
+    this.scene.remove(enemy.hpBarBg);
+    // Dispose 3D meshes
+    enemy.mesh.traverse(child => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+    enemy.hpBar.material.dispose();
+    enemy.hpBarBg.material.dispose();
+    // Dispose per-enemy textures
+    const data = this.hpData.get(enemy.id);
+    if (data) {
+      data.texture.dispose();
+      data.bgTexture.dispose();
+      this.hpData.delete(enemy.id);
+    }
   }
 
   public getEnemiesInRange(pos: THREE.Vector3, range: number): EnemyInstance[] {
@@ -282,11 +332,10 @@ export class EnemyManager {
   }
 
   public dispose(): void {
-    for (const enemy of this.enemies) {
-      this.scene.remove(enemy.mesh);
-      this.scene.remove(enemy.hpBar);
-      this.scene.remove(enemy.hpBarBg);
+    for (const enemy of [...this.enemies]) {
+      this.cleanupEnemy(enemy);
     }
     this.enemies = [];
+    this.hpData.clear();
   }
 }

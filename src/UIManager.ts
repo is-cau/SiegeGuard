@@ -14,6 +14,7 @@ export class UIManager {
   private waveDisplay: HTMLElement;
   private scoreDisplay: HTMLElement;
   private waveBtn: HTMLButtonElement;
+  private speedBtn: HTMLButtonElement;
   private messageEl: HTMLElement;
   private towerButtons: NodeListOf<HTMLButtonElement>;
 
@@ -27,6 +28,7 @@ export class UIManager {
     this.waveDisplay = document.getElementById('wave-display')!;
     this.scoreDisplay = document.getElementById('score-display')!;
     this.waveBtn = document.getElementById('wave-btn') as HTMLButtonElement;
+    this.speedBtn = document.getElementById('speed-btn') as HTMLButtonElement;
     this.messageEl = document.getElementById('message')!;
     this.towerButtons = document.querySelectorAll('#tower-panel button[data-tower]');
 
@@ -56,6 +58,11 @@ export class UIManager {
           this.updateTowerButtons();
         }
       });
+    });
+
+    // Speed button
+    this.speedBtn.addEventListener('click', () => {
+      this.gameManager.toggleSpeed();
     });
 
     // Wave button
@@ -110,6 +117,9 @@ export class UIManager {
     this.gameManager.onLivesChanged = (lives) => {
       this.livesDisplay.textContent = lives.toString();
     };
+    this.gameManager.onSpeedChanged = (speed) => {
+      this.updateSpeedButton(speed);
+    };
     this.gameManager.onMessage = (msg) => {
       this.showMessage(msg);
     };
@@ -147,6 +157,11 @@ export class UIManager {
       btn.classList.toggle('selected', isSelected);
       btn.disabled = !isBuilding || (!isSelected && !canAfford);
     });
+  }
+
+  public updateSpeedButton(speed: number): void {
+    this.speedBtn.textContent = speed === 2 ? '⏩ 2x' : '⏩ 1x';
+    this.speedBtn.classList.toggle('speed2', speed === 2);
   }
 
   public updateWaveButton(): void {
