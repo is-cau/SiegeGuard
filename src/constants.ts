@@ -75,12 +75,12 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     damage: 12,
     range: 4.5,
     fireRate: 1.0,
-    slowFactor: 0.4,
+    slowFactor: 0.65,
     slowDuration: 2.0,
     aoeRadius: 3,     // area slow — all enemies in range get slowed
     chainCount: 0,
     color: 0x4dd0e1,
-    description: '范围减速敌人 60%',
+    description: '范围减速敌人 35%',
   },
   [TowerType.Lightning]: {
     type: TowerType.Lightning,
