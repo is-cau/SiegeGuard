@@ -77,10 +77,10 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     fireRate: 1.0,
     slowFactor: 0.4,
     slowDuration: 2.0,
-    aoeRadius: 0,
+    aoeRadius: 3,     // area slow — all enemies in range get slowed
     chainCount: 0,
     color: 0x4dd0e1,
-    description: '减速敌人 60%',
+    description: '范围减速敌人 60%',
   },
   [TowerType.Lightning]: {
     type: TowerType.Lightning,
@@ -267,8 +267,8 @@ export interface EnemyInstance {
   speed: number;
   worldPos: THREE.Vector3;
   mesh: THREE.Group;
-  hpBar: THREE.Sprite;
-  hpBarBg: THREE.Sprite;
+  hpBarGroup: THREE.Group;    // 3D HP bar group (child of mesh)
+  hpFill: THREE.Mesh;         // fill bar mesh (scale.x = hp ratio)
   pathIndex: number;
   pathProgress: number;
   alive: boolean;

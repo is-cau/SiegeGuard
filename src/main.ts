@@ -184,6 +184,9 @@ const projectileManager = new ProjectileManager(scene, enemyManager, effectManag
 const gameManager = new GameManager(mapManager, towerManager, enemyManager, projectileManager, effectManager);
 const uiManager = new UIManager(gameManager);
 
+// Wire camera for HP bar billboarding
+enemyManager.setCamera(camera);
+
 // Wire tower fire callback
 towerManager.onTowerFire = (tower, target) => {
   projectileManager.fireProjectile(tower, target);

@@ -227,7 +227,6 @@ export class GameManager {
         lastEnemy.hp = Math.floor(lastEnemy.hp * hpMult);
         lastEnemy.maxHp = lastEnemy.hp;
         lastEnemy.speed = lastEnemy.config.speed * (1 + (this.state.wave - 1) * 0.03);
-        this.enemyManager.drawHpBar(lastEnemy);
       }
 
       // Move to next entry or reset timer

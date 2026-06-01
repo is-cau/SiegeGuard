@@ -163,22 +163,33 @@ export class ProjectileManager {
   private onProjectileHit(proj: ProjectileInstance): void {
     const pos = proj.position.clone();
 
-    // AOE (Cannon)
+    // AOE damage/slow (Cannon = AOE damage, Ice = AOE slow)
     if (proj.aoeRadius > 0) {
       const enemies = this.enemyManager.getEnemiesInRange(pos, proj.aoeRadius);
       for (const enemy of enemies) {
-        const killed = this.enemyManager.takeDamage(enemy, proj.damage);
+        // Ice applies slow to ALL in range, cannon just deals damage
+        const killed = this.enemyManager.takeDamage(
+          enemy, proj.damage, proj.slowFactor, proj.slowDuration,
+        );
         if (killed && this.onEnemyKilled) {
           this.onEnemyKilled(enemy);
         }
       }
-      // Big explosion
-      this.effectManager.spawnExplosion(pos, new THREE.Color(0xff6600), 25);
-      this.effectManager.spawnExplosion(
-        pos.clone().add(new THREE.Vector3(0, 0.3, 0)),
-        new THREE.Color(0xffcc00),
-        15,
-      );
+      // Visual effect
+      if (proj.slowFactor < 1) {
+        // Ice: frost nova ring
+        this.effectManager.spawnIceEffect(pos);
+        for (const enemy of enemies) {
+          this.effectManager.spawnIceEffect(enemy.worldPos.clone());
+        }
+      } else {
+        // Cannon: explosion
+        this.effectManager.spawnExplosion(pos, new THREE.Color(0xff6600), 25);
+        this.effectManager.spawnExplosion(
+          pos.clone().add(new THREE.Vector3(0, 0.3, 0)),
+          new THREE.Color(0xffcc00), 15,
+        );
+      }
     } else if (proj.chainCount > 0) {
       // Chain lightning
       const hitEnemies: EnemyInstance[] = [];
@@ -215,21 +226,14 @@ export class ProjectileManager {
         8,
       );
     } else {
-      // Single target (Arrow or Ice)
+      // Single target (Arrow only — no AOE, no chain)
       const killed = this.enemyManager.takeDamage(
         proj.target,
         proj.damage,
-        proj.slowFactor,
-        proj.slowDuration,
       );
 
-      if (proj.slowFactor < 1) {
-        // Ice hit effect
-        this.effectManager.spawnIceEffect(proj.target.worldPos.clone());
-      } else {
-        // Arrow hit — small spark
-        this.effectManager.spawnExplosion(pos, new THREE.Color(0xffcc80), 4);
-      }
+      // Arrow hit — small spark
+      this.effectManager.spawnExplosion(pos, new THREE.Color(0xffcc80), 4);
 
       if (killed && this.onEnemyKilled) {
         this.onEnemyKilled(proj.target);
