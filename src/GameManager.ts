@@ -227,7 +227,7 @@ export class GameManager {
       // HP scaling based on wave
       const lastEnemy = this.enemyManager.enemies[this.enemyManager.enemies.length - 1];
       if (lastEnemy) {
-        const hpMult = 1 + (this.state.wave - 1) * 0.25;
+        const hpMult = 1 + (this.state.wave - 1) * 0.40;
         lastEnemy.hp = Math.floor(lastEnemy.hp * hpMult);
         lastEnemy.maxHp = lastEnemy.hp;
         lastEnemy.speed = lastEnemy.config.speed * (1 + (this.state.wave - 1) * 0.03);
