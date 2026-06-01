@@ -131,16 +131,16 @@ export class GameManager {
     // Grunts: always present
     entries.push({
       type: EnemyType.Grunt,
-      count: 3 + Math.floor(difficulty * 8),
-      interval: Math.max(0.3, 1.2 - difficulty * 0.7),
+      count: 5 + Math.floor(difficulty * 12),
+      interval: Math.max(0.25, 1.0 - difficulty * 0.6),
     });
 
     // Runners: starting wave 3
     if (wave >= 3) {
       entries.push({
         type: EnemyType.Runner,
-        count: 2 + Math.floor(difficulty * 5),
-        interval: Math.max(0.2, 0.8 - difficulty * 0.4),
+        count: 3 + Math.floor(difficulty * 8),
+        interval: Math.max(0.15, 0.6 - difficulty * 0.3),
       });
     }
 
@@ -148,16 +148,17 @@ export class GameManager {
     if (wave >= 5) {
       entries.push({
         type: EnemyType.Tank,
-        count: 1 + Math.floor(difficulty * 3),
-        interval: 1.5 + (1 - difficulty) * 1.5,
+        count: 2 + Math.floor(difficulty * 5),
+        interval: 1.2 + (1 - difficulty) * 1.2,
       });
     }
 
-    // Boss: waves 5, 10, 15
+    // Boss: waves 5, 10, 15 — increasing count
     if (wave % 5 === 0) {
+      const bossCount = wave === 5 ? 1 : wave === 10 ? 2 : 3;
       entries.push({
         type: EnemyType.Boss,
-        count: 1,
+        count: bossCount,
         interval: 2,
       });
     }
