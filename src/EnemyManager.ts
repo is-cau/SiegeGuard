@@ -261,9 +261,9 @@ export class EnemyManager {
       }
     }
 
-    // Cleanup dead/reached-end enemies
+    // Cleanup dead enemies only (reached-end handled by GameManager)
     this.enemies = this.enemies.filter(e => {
-      if (!e.alive || e.reachedEnd) {
+      if (!e.alive) {
         this.cleanupEnemy(e);
         return false;
       }

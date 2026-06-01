@@ -142,7 +142,7 @@ flag.position.set(0, 3.5, 0);
 castleGroup.add(flag);
 
 const endPos = gridToWorld(11, 7);
-castleGroup.position.set(endPos.x, 0, endPos.z + 2.5);
+castleGroup.position.set(endPos.x, 0, endPos.z + 0.5);
 scene.add(castleGroup);
 
 // Castle HP bar
@@ -163,7 +163,7 @@ const castleBorder = new THREE.LineSegments(castleBorderGeo, castleBorderMat);
 castleBorder.position.z = 0.01;
 castleHpGroup.add(castleBorder);
 // "🏠" label using a small plane with text — just use position
-castleHpGroup.position.set(endPos.x, 3.5, endPos.z + 2.5);
+castleHpGroup.position.set(endPos.x, 3.5, endPos.z + 0.5);
 scene.add(castleHpGroup);
 
 function updateCastleHpBar(lives: number, maxLives: number): void {
